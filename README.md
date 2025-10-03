@@ -2,6 +2,10 @@
 
 A simple command-line AI Q&A bot built with LangGraph and powered by Groq's free API.
 
+## Live Demo
+
+- Open the deployed app: [agentic-qa-app (Streamlit)](https://agentic-app-app-git-init-joqxdmqmxevtdt4byeczek.streamlit.app/)
+
 ## Features
 
 - 🌐 **Web Interface**: Beautiful Streamlit frontend

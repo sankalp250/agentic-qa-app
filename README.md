@@ -1,148 +1,93 @@
-# AI Q&A Bot
+🧠 Proactive AI Agent: A "Living" Knowledge Base
+This project is not just a Q&A bot; it's a sophisticated, autonomous AI agent designed to become a world-class expert on any topic you assign. It proactively researches subjects online, builds its own "living" knowledge base, and intelligently keeps it up-to-date.
 
-A simple command-line AI Q&A bot built with LangGraph and powered by Groq's free API.
+Powered by a robust LangGraph state machine, high-speed inference from the Groq API, and a local FAISS vector store, this agent demonstrates a modern, cyclical AI architecture that goes far beyond simple request-response interactions.
 
-## Live Demo
+✨ Key Features
+🧠 Autonomous Learning: The agent runs on its own to find, analyze, and assimilate the latest information on a topic.
 
-- Open the deployed app: [agentic-qa-app (Streamlit)](https://agentic-app-app-git-init-joqxdmqmxevtdt4byeczek.streamlit.app/)
+🌐 Proactive Web Foraging: Uses the Tavily search API to discover the most recent articles, research, and news from the web.
 
-## Features
+🤔 Intelligent Critique System: Before saving new information, the agent performs a RAG query on its own knowledge base to determine if the information is truly novel and valuable, preventing redundancy and ensuring high-quality data.
 
-- 🌐 **Web Interface**: Beautiful Streamlit frontend
-- 🤖 **Interactive CLI**: Command-line chat mode
-- ❓ **Single Question Mode**: Quick CLI queries
-- 🔧 **LangGraph Architecture**: Robust conversation flow
-- ⚡ **Groq API**: Fast inference with free tier
-- 🎨 **Dual Interface**: Choose between web or CLI
+💾 Persistent Knowledge Base: Builds and maintains a local FAISS vector store, allowing its expertise to grow and persist over time.
 
-## Setup
+⚡ High-Speed LLM: Leverages the Groq API for near-instant reasoning, summarization, and analysis tasks.
 
-### 1. Install Dependencies
+🔧 Advanced Agentic Architecture: Built with LangGraph to create a reliable, stateful, and cyclical workflow (Forage -> Summarize -> Critique -> Assimilate).
 
-```bash
+🖥️ Interactive Web Interface: A polished Streamlit application allows anyone to interact with the agent, query its knowledge, and command it to learn.
+
+🏛️ Architecture: The Agent's Learning Cycle
+The core of this project is the agent's autonomous learning cycle, managed by a LangGraph state machine. This cycle defines its "thought process" and actions.
+
+Forage 🔎
+The agent begins by formulating a targeted search query based on its core topic and the time since its last update. It then uses a web search tool to find the most recent and relevant online sources.
+
+Summarize 📝
+It fetches the full content from the discovered URLs and uses the LLM to generate concise, factual summaries. This step is crucial for quickly understanding the essence of each new document.
+
+Critique 🤔
+This is the agent's most intelligent step. For each summary, it performs a similarity search against its own existing knowledge base. It asks itself: "Is this information truly new, or is it just a rehash of what I already know?" This self-reflection prevents data duplication and ensures the knowledge base remains high-quality.
+
+Assimilate 💾
+If the information is deemed novel and valuable, the agent chunks the full original content, creates vector embeddings, and permanently adds them to its FAISS vector store. Its knowledge has now officially grown.
+
+This entire cycle can be triggered on-demand through the web UI, demonstrating a complete, end-to-end agentic workflow.
+
+🚀 Getting Started
+1. Installation
+Clone the repository and install the required dependencies:
+
+Bash
+
+git clone <your-repo-url>
+cd <your-repo-name>
 pip install -r requirements.txt
-```
+2. Get API Keys
+You will need two free API keys for this project to function:
 
-### 2. Get Groq API Key
+Groq API Key: For LLM inference. Get it from the Groq Console.
 
-1. Visit [Groq Console](https://console.groq.com/)
-2. Sign up for a free account
-3. Create an API key
+Tavily API Key: For the advanced web search tool. Get it from Tavily AI.
 
-### 3. Configure Environment
+3. Configure Your Environment
+Create a .env file in the root directory of the project. Copy the contents of .env.example and add your API keys:
 
-Create a `.env` file in the project root:
+Code snippet
 
-```env
-GROQ_API_KEY=your_actual_groq_api_key_here
-```
+GROQ_API_KEY="your_actual_groq_api_key_here"
+TAVILY_API_KEY="your_actual_tavily_api_key_here"
+🖥️ Usage: The Web Interface
+The best way to interact with the agent is through the Streamlit web application.
 
-## Usage
+To start the app, run:
 
-### 🌐 Web Interface (Recommended)
+Bash
 
-```bash
-# Option 1: Direct streamlit command
 streamlit run streamlit_app.py
+How It Works:
+Set a Topic: Use the sidebar to define the research topic you want the agent to become an expert on.
 
-# Option 2: Using the helper script
-python run_web.py
-```
+Build the Knowledge Base: Click the "🔄 Update Knowledge Base Now" button. This will command the agent to perform its full, real-time learning cycle. You will see its progress as it works.
 
-Opens a beautiful web interface in your browser with:
-- Chat-style conversation
-- Model selection
-- Example questions
-- Message history
-- Easy setup guidance
+Ask Questions: Once the knowledge base is built, you can ask the agent complex questions about the topic. It will use its own research—not its pre-trained knowledge—to provide accurate, up-to-date answers.
 
-### 🤖 Command Line Interface
+📂 Project Structure
+The project has been refactored to support the advanced agentic architecture:
 
-#### Interactive Chat Mode
-```bash
-python main.py
-```
-
-#### Single Question Mode
-```bash
-python main.py -q "What is artificial intelligence?"
-```
-
-### Command Line Options
-
-```bash
-python main.py --help
-```
-
-Available options:
-- `-q, --question`: Ask a single question
-- `-m, --model`: Choose Groq model (default: llama3-8b-8192)
-- `--version`: Show version information
-
-### Available Models
-
-- `llama-3.1-8b-instant` (default - fast and reliable)
-- `llama3-70b-8192` (larger model, better for complex tasks)
-- `mixtral-8x7b-32768` (good for reasoning tasks)
-- `gemma2-9b-it` (efficient alternative)
-
-> **Note**: Model availability may change. If you encounter model decommissioning errors, try a different model from the list above.
-
-## Examples
-
-### Web Interface
-```bash
-# Start the web app
-streamlit run streamlit_app.py
-# Then open your browser to http://localhost:8501
-```
-
-### CLI Interface
-```bash
-# Start interactive chat
-python main.py
-
-# Ask about programming
-python main.py -q "Explain the difference between Python lists and tuples"
-
-# Use a different model
-python main.py -m llama3-70b-8192 -q "Write a short poem about AI"
-```
-
-## Project Structure
-
-```
 agentic-qa-app/
 ├── agent/
+│   ├── tools/
+│   │   └── web_search.py   # The agent's web search tool
 │   ├── __init__.py
-│   └── simple_agent.py     # Main LangGraph agent
-├── main.py                 # CLI interface
-├── streamlit_app.py        # Web interface
-├── run_web.py              # Helper script to start web app
-├── requirements.txt        # Dependencies
-├── .env                    # API keys (create this)
-├── .gitignore             # Git configuration
-└── README.md              # This file
-```
-
-## Architecture
-
-The bot uses LangGraph to create a simple but robust conversation flow:
-
-1. **Process Question**: Validates and prepares user input
-2. **Generate Answer**: Uses Groq API to generate responses
-3. **Handle Errors**: Gracefully manages API errors and edge cases
-
-## Contributing
-
-This is a simple starter project. Feel free to enhance it with:
-
-- Web search capabilities
-- Memory/conversation history
-- Multiple AI providers
-- More sophisticated prompting
-- Chat history persistence
-
-## License
-
-MIT License - feel free to use and modify as needed.
+│   ├── proactive_agent.py  # The core logic for the advanced agent
+│   └── simple_agent.py     # The original basic Q&A agent (archived)
+├── .env                    # Your API keys
+├── main.py                 # Original CLI script (archived)
+├── requirements.txt
+├── run_proactive_agent.py  # Script to run the agent as a continuous service
+└── streamlit_app.py        # The main web interface
+└── README.md               # This file
+License
+This project is licensed under the MIT License. Feel free to use, modify, and build upon it.

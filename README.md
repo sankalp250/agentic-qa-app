@@ -25,12 +25,22 @@ A modern agentic app that proactively researches a topic, summarizes new content
 
 ### 1) Clone and install
 ```bash
-# from a terminal
-cd D:\agentic-qa-app
-# if you need a venv (optional if already present)
+# Clone the repository
+git clone https://github.com/sankalp250/agentic-qa-app.git
+cd agentic-qa-app
+
+# Create virtual environment (recommended)
 python -m venv venv
-.\venv\Scripts\pip.exe install --upgrade pip
-.\venv\Scripts\pip.exe install -r requirements.txt
+
+# Activate virtual environment
+# On Windows:
+.\venv\Scripts\activate
+# On macOS/Linux:
+# source venv/bin/activate
+
+# Install dependencies
+pip install --upgrade pip
+pip install -r requirements.txt
 ```
 
 ### 2) Environment variables
@@ -43,15 +53,24 @@ TAVILY_API_KEY="your_tavily_api_key"
 ### 3) Run options
 - **Web app (recommended):**
 ```bash
+# On Windows:
 .\venv\Scripts\streamlit.exe run streamlit_app.py
+# On macOS/Linux:
+streamlit run streamlit_app.py
 ```
 - **Scheduled CLI service:** runs a learning cycle now, then every 24h
 ```bash
+# On Windows:
 .\venv\Scripts\python.exe run_proactive_agent.py
+# On macOS/Linux:
+python run_proactive_agent.py
 ```
 - **Single run (no scheduler):**
 ```bash
+# On Windows:
 .\venv\Scripts\python.exe run_proactive_agent.py --run_once
+# On macOS/Linux:
+python run_proactive_agent.py --run_once
 ```
 
 ## 📂 Project structure

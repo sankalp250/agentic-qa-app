@@ -296,7 +296,8 @@ class ProactiveAgent:
         else:
             print("✅ No new valuable information to add.")
             
-        return {}
+        # Return state update to satisfy LangGraph requirements
+        return {"valuable_info": []}  # Clear the valuable_info after processing
 
     # --- Public Methods ---
     def run_proactive_cycle(self):
@@ -306,6 +307,8 @@ class ProactiveAgent:
             "topic": self.topic,
             "last_run_time": datetime.now() - timedelta(days=1),
             "messages": [],
+            "new_articles": [],
+            "valuable_info": []
         }
         # Run the graph from start to finish
         self.graph.invoke(initial_state)

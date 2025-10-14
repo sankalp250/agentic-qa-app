@@ -1,6 +1,10 @@
 # 🧠 Proactive AI Agent: A "Living" Knowledge Base
 
-A modern agentic app that proactively researches a topic, summarizes new content, filters for novelty, and assimilates it into a local FAISS vector store. Built with LangGraph, LangChain, and Groq for fast, cyclical learning beyond simple Q&A.
+[![Streamlit App](https://img.shields.io/badge/🚀_Live_Demo-Streamlit_App-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://agentic-app-app-9sqfnhaptnfzcrwmuvjxhx.streamlit.app/)
+
+A modern agentic app that proactively researches a topic, summarizes new content, filters for novelty, and assimilates it into a local vector store. Built with LangGraph, LangChain, and Groq for fast, cyclical learning beyond simple Q&A.
+
+> **🌐 [Try the Live Demo](https://agentic-app-app-9sqfnhaptnfzcrwmuvjxhx.streamlit.app/)** - No installation required!
 
 ## ✨ Features
 - **Autonomous learning cycle**: Forage → Summarize → Critique → Assimilate
@@ -13,8 +17,9 @@ A modern agentic app that proactively researches a topic, summarizes new content
 ## 🏛️ Architecture at a glance
 - **LangGraph** orchestrates the workflow with a state machine
 - **HuggingFaceEmbeddings** generate vector representations
-- **FAISS** indexes and searches local documents
+- **FAISS/ChromaDB** indexes and searches local documents (auto-fallback)
 - **Groq Chat model** handles summarization and critique
+- **Tavily API** provides web search capabilities
 
 ## 🚀 Quickstart
 
@@ -66,29 +71,30 @@ agentic-qa-app/
 ```
 
 ## 🧩 Troubleshooting
-- **Import "faiss" could not be resolved**
-  - Install the Windows wheel (import name remains `faiss`):
-    ```powershell
-    .\venv\Scripts\pip.exe install faiss-cpu==1.8.0.post1
-    ```
-  - Ensure your IDE interpreter is `D:\agentic-qa-app\venv\Scripts\python.exe`.
-  - GPU users (optional): `pip install faiss-gpu` (requires CUDA).
 
-- **Import "apscheduler.schedulers.background" could not be resolved**
-  - Install in the active venv:
-    ```powershell
-    .\venv\Scripts\pip.exe install APScheduler==3.10.4
-    ```
-  - Point IDE to the same venv and reload.
+### **Live Demo Issues**
+- **App not loading**: Check if the Streamlit Cloud service is running
+- **API Key errors**: The live demo requires valid GROQ_API_KEY and TAVILY_API_KEY
+- **Network errors**: The app may retry automatically, or try refreshing the page
 
-- **Dependency resolution errors with LangChain/LangGraph**
-  - This repo pins compatible versions in `requirements.txt`:
-    - `langchain==0.3.7`, `langchain-community==0.3.7`, `langgraph==0.6.8`
-  - If issues persist, upgrade pip and reinstall:
-    ```powershell
-    .\venv\Scripts\python.exe -m pip install --upgrade pip
-    .\venv\Scripts\pip.exe install -r requirements.txt --upgrade
-    ```
+### **Local Installation Issues**
+- **Dependency conflicts**: This repo uses pinned, compatible versions:
+  - `langchain==0.3.8`, `langchain-community==0.3.8`, `langgraph==0.2.45`
+- **Vector store issues**: App automatically falls back from FAISS to ChromaDB
+- **Import errors**: Ensure you're using the correct Python environment:
+  ```powershell
+  .\venv\Scripts\python.exe -m pip install --upgrade pip
+  .\venv\Scripts\pip.exe install -r requirements.txt
+  ```
+
+### **API Setup**
+1. Get a free Groq API key: https://console.groq.com/
+2. Get a free Tavily API key: https://tavily.com/
+3. Create `.env` file with your keys:
+   ```bash
+   GROQ_API_KEY="your_groq_api_key"
+   TAVILY_API_KEY="your_tavily_api_key"
+   ```
 
 ## 📜 License
 MIT License. Feel free to use, modify, and build upon it.

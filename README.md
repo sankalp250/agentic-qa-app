@@ -89,23 +89,6 @@ agentic-qa-app/
 └─ README.md
 ```
 
-## 🧩 Troubleshooting
-
-### **Live Demo Issues**
-- **App not loading**: Check if the Streamlit Cloud service is running
-- **API Key errors**: The live demo requires valid GROQ_API_KEY and TAVILY_API_KEY
-- **Network errors**: The app may retry automatically, or try refreshing the page
-
-### **Local Installation Issues**
-- **Dependency conflicts**: This repo uses pinned, compatible versions:
-  - `langchain==0.3.8`, `langchain-community==0.3.8`, `langgraph==0.2.45`
-- **Vector store issues**: App automatically falls back from FAISS to ChromaDB
-- **Import errors**: Ensure you're using the correct Python environment:
-  ```powershell
-  .\venv\Scripts\python.exe -m pip install --upgrade pip
-  .\venv\Scripts\pip.exe install -r requirements.txt
-  ```
-
 ### **API Setup**
 1. Get a free Groq API key: https://console.groq.com/
 2. Get a free Tavily API key: https://tavily.com/

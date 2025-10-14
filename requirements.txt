@@ -1,14 +1,15 @@
 # Core AI Libraries
-langchain==0.3.7
-langchain-groq
+langchain==0.2.5
+langchain-groq==0.3.8
 langgraph==0.6.8
-langchain-community==0.3.7
+langchain-community==0.2.5
 tavily-python==0.3.3
 chromadb==0.5.4
+faiss-cpu==1.8.0
 sentence-transformers==3.0.1
 beautifulsoup4==4.12.3
-unstructured==0.14.9
-faiss-cpu==1.8.0.post1
+# Use the [local-inference] extra for all necessary dependencies on the server
+unstructured[local-inference]==0.14.9
 
 # Utilities
 python-dotenv==1.0.0

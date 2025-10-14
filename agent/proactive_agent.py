@@ -2,7 +2,12 @@
 Proactive AI Agent with a "Living" Knowledge Base
 """
 import os
-import faiss
+try:
+    import faiss  # optional; may be unavailable on Windows
+    HAS_FAISS = True
+except Exception:
+    faiss = None
+    HAS_FAISS = False
 import json
 from datetime import datetime, timedelta
 from typing import TypedDict, List, Annotated
@@ -10,6 +15,7 @@ from dotenv import load_dotenv
 
 from langchain_community.docstore import InMemoryDocstore
 from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import WebBaseLoader
@@ -20,6 +26,8 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 
 from agent.tools.web_search import get_web_search_tool
+import chromadb
+from chromadb.config import Settings
 
 # Load environment variables from .env file
 load_dotenv()
@@ -68,26 +76,37 @@ class ProactiveAgent:
         self.graph = self._build_graph()
 
     def _initialize_vector_store(self):
-        """Initializes a FAISS vector store in memory."""
-        try:
-            embedding_model = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2"
-            )
-            embedding_size = 384
-            index = faiss.IndexFlatL2(embedding_size)
-            docstore = InMemoryDocstore({})
-            
-            vector_store = FAISS(
-                embedding_function=embedding_model,
-                index=index,
-                docstore=docstore,
-                index_to_docstore_id={}
-            )
-            print("✅ Vector store initialized successfully.")
-            return vector_store
-        except Exception as e:
-            print(f"❌ Error initializing vector store: {e}")
-            raise
+        """Initializes an in-memory vector store. Prefer FAISS; fallback to Chroma."""
+        embedding_model = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
+
+        # Try FAISS first if available
+        if HAS_FAISS:
+            try:
+                embedding_size = 384
+                index = faiss.IndexFlatL2(embedding_size)
+                docstore = InMemoryDocstore({})
+                vector_store = FAISS(
+                    embedding_function=embedding_model,
+                    index=index,
+                    docstore=docstore,
+                    index_to_docstore_id={}
+                )
+                print("✅ Vector store initialized with FAISS.")
+                return vector_store
+            except Exception as e:
+                print(f"⚠️ FAISS initialization failed, falling back to Chroma: {e}")
+
+        # Fallback: Chroma (pure Python)
+        client = chromadb.Client(Settings(anonymized_telemetry=False))
+        vector_store = Chroma(
+            embedding_function=embedding_model,
+            client=client,
+            collection_name="agent_kb"
+        )
+        print("✅ Vector store initialized with Chroma.")
+        return vector_store
 
     def _build_graph(self):
         """Builds the LangGraph state machine for the agent's workflow."""
@@ -213,7 +232,19 @@ class ProactiveAgent:
             )
             chunks = text_splitter.create_documents(valuable_info)
             self.vector_store.add_documents(chunks)
-            print(f"✅ Knowledge base updated. Total documents: {self.vector_store.index.ntotal}")
+            # Report count for both FAISS and Chroma
+            total_docs = None
+            try:
+                if hasattr(self.vector_store, "index") and hasattr(self.vector_store.index, "ntotal"):
+                    total_docs = self.vector_store.index.ntotal
+                elif hasattr(self.vector_store, "_collection") and self.vector_store._collection is not None:
+                    total_docs = self.vector_store._collection.count()
+            except Exception:
+                pass
+            if total_docs is not None:
+                print(f"✅ Knowledge base updated. Total documents: {total_docs}")
+            else:
+                print("✅ Knowledge base updated.")
         else:
             print("✅ No new valuable information to add.")
             
@@ -235,8 +266,16 @@ class ProactiveAgent:
     def ask(self, question: str) -> str:
         """Asks a question to the agent's knowledge base."""
         print(f"\n❓ Answering question: '{question}'")
-        if not hasattr(self.vector_store.index, 'ntotal') or self.vector_store.index.ntotal == 0:
-            return "My knowledge base is empty. Please run a proactive cycle first."
+        try:
+            has_faiss_index = hasattr(self.vector_store, "index") and hasattr(self.vector_store.index, "ntotal")
+            if has_faiss_index and self.vector_store.index.ntotal == 0:
+                return "My knowledge base is empty. Please run a proactive cycle first."
+            if hasattr(self.vector_store, "_collection") and self.vector_store._collection is not None:
+                if self.vector_store._collection.count() == 0:
+                    return "My knowledge base is empty. Please run a proactive cycle first."
+        except Exception:
+            # If we cannot determine, proceed to try answering
+            pass
 
         # Retrieve relevant documents from the knowledge base (RAG)
         relevant_docs = self.vector_store.similarity_search(question, k=4) # Increased to 4 for more context

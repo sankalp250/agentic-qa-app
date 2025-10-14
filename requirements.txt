@@ -1,19 +1,33 @@
-# Core AI Libraries
-langchain==0.2.5
-langchain-groq==0.1.3
-langgraph==0.0.69
-langchain-community==0.2.5
-tavily-python==0.3.3
-chromadb==0.5.0
-faiss-cpu==1.8.0
-sentence-transformers==2.7.0
-beautifulsoup4==4.12.3
-unstructured==0.14.9
-
-# Utilities
-python-dotenv==1.0.1
-pydantic==2.7.4
-APScheduler==3.10.4
 
 # Frontend
 streamlit==1.36.0
+
+# Core AI Framework (pinned compatible set)
+langchain==0.3.7
+langchain-community==0.3.7
+langgraph==0.6.8
+langchain-groq==0.2.1
+
+# Embeddings + Vector store
+sentence-transformers==2.7.0
+faiss-cpu==1.8.0.post1
+
+# Web search tool
+tavily-python==0.3.3
+
+# Utilities
+python-dotenv==1.0.1
+requests==2.32.3
+beautifulsoup4==4.12.3
+urllib3==2.2.3
+certifi==2024.8.30
+
+# Scheduling (CLI runner)
+APScheduler==3.10.4
+
+# Optional web server (if you run FastAPI later)
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# Testing (optional)
+pytest==8.3.3

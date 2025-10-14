@@ -26,8 +26,6 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 
 from agent.tools.web_search import get_web_search_tool
-import chromadb
-from chromadb.config import Settings
 
 # Load environment variables from .env file
 load_dotenv()
@@ -99,14 +97,21 @@ class ProactiveAgent:
                 print(f"⚠️ FAISS initialization failed, falling back to Chroma: {e}")
 
         # Fallback: Chroma (pure Python)
-        client = chromadb.Client(Settings(anonymized_telemetry=False))
-        vector_store = Chroma(
-            embedding_function=embedding_model,
-            client=client,
-            collection_name="agent_kb"
-        )
-        print("✅ Vector store initialized with Chroma.")
-        return vector_store
+        try:
+            import chromadb
+            from chromadb.config import Settings
+            
+            client = chromadb.Client(Settings(anonymized_telemetry=False))
+            vector_store = Chroma(
+                embedding_function=embedding_model,
+                client=client,
+                collection_name="agent_kb"
+            )
+            print("✅ Vector store initialized with Chroma.")
+            return vector_store
+        except ImportError as e:
+            print(f"❌ ChromaDB not available: {e}")
+            raise Exception("Neither FAISS nor ChromaDB could be initialized. Please install chromadb: pip install chromadb")
 
     def _build_graph(self):
         """Builds the LangGraph state machine for the agent's workflow."""

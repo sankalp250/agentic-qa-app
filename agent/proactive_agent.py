@@ -154,35 +154,78 @@ class ProactiveAgent:
         print("--- summarizing new articles ---")
         tool_message = state['messages'][-1]
         
-        # content is a stringified list of dicts
-        raw_articles = json.loads(tool_message.content) 
+        # Debug: Print the tool message content to understand structure
+        print(f"Tool message content: {tool_message.content}")
+        
+        try:
+            # content is a stringified list of dicts
+            raw_articles = json.loads(tool_message.content) 
+        except json.JSONDecodeError:
+            print("Failed to parse tool message content as JSON")
+            return {"new_articles": []}
 
         if not raw_articles:
             print("No new articles found to summarize.")
             return {"new_articles": []}
 
+        # Debug: Print the structure of the first article
+        print(f"First article structure: {raw_articles[0] if raw_articles else 'No articles'}")
+
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
-        loader = WebBaseLoader(
-            [article['url'] for article in raw_articles],
-            requests_per_second=2,
-            header_template=headers
-        )
-        docs = loader.load()
+        
+        # Extract URLs safely
+        urls = []
+        for article in raw_articles:
+            # Handle different possible key names for URL
+            url = article.get('url') or article.get('link') or article.get('href')
+            if url:
+                urls.append(url)
+        
+        if not urls:
+            print("No valid URLs found in search results")
+            return {"new_articles": []}
+
+        try:
+            loader = WebBaseLoader(
+                urls,
+                requests_per_second=2,
+                header_template=headers
+            )
+            docs = loader.load()
+        except Exception as e:
+            print(f"Error loading web content: {e}")
+            # Fallback: use search result content directly
+            processed_articles = []
+            for i, article in enumerate(raw_articles):
+                # Use search result content as fallback
+                content = article.get('content', '') or article.get('snippet', '') or article.get('description', '')
+                if content:
+                    processed_articles.append({
+                        "title": article.get('title', f"Article {i+1}"),
+                        "url": article.get('url', ''),
+                        "summary": content[:500] + "..." if len(content) > 500 else content,
+                        "full_content": content
+                    })
+            return {"new_articles": processed_articles}
 
         processed_articles = []
         for i, doc in enumerate(docs):
-            prompt = f"Please provide a concise, factual summary of the following text:\n\n{doc.page_content[:4000]}"
-            summary_response = self.llm.invoke([HumanMessage(content=prompt)])
-            
-            # Store everything we need for the next steps
-            processed_articles.append({
-                "title": raw_articles[i]['title'],
-                "url": raw_articles[i]['url'],
-                "summary": summary_response.content,
-                "full_content": doc.page_content
-            })
+            try:
+                prompt = f"Please provide a concise, factual summary of the following text:\n\n{doc.page_content[:4000]}"
+                summary_response = self.llm.invoke([HumanMessage(content=prompt)])
+                
+                # Store everything we need for the next steps
+                processed_articles.append({
+                    "title": raw_articles[i].get('title', f"Article {i+1}"),
+                    "url": raw_articles[i].get('url', ''),
+                    "summary": summary_response.content,
+                    "full_content": doc.page_content
+                })
+            except Exception as e:
+                print(f"Error processing article {i}: {e}")
+                continue
 
         return {"new_articles": processed_articles}
 

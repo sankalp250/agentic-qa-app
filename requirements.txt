@@ -3,9 +3,9 @@
 streamlit==1.36.0
 
 # Core AI Framework (pinned compatible set)
-langchain==0.3.7
-langchain-community==0.3.7
-langgraph==0.6.8
+langchain==0.3.8
+langchain-community==0.3.8
+langgraph==0.2.45
 langchain-groq==0.2.1
 
 # Embeddings + Vector store

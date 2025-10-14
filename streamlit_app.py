@@ -52,13 +52,19 @@ with st.sidebar:
     # Button to trigger the learning cycle
     if st.button("🔄 Update Knowledge Base Now", type="primary"):
         with st.spinner("Agent is learning... This may take a moment."):
-            agent = get_agent(agent_topic)
-            if agent:
-                agent.run_proactive_cycle()
-                st.session_state.last_update_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                # Clear chat history after updating knowledge
-                st.session_state.messages = [] 
-                st.success("Knowledge base updated!")
+            try:
+                agent = get_agent(agent_topic)
+                if agent:
+                    agent.run_proactive_cycle()
+                    st.session_state.last_update_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    # Clear chat history after updating knowledge
+                    st.session_state.messages = [] 
+                    st.success("Knowledge base updated!")
+                else:
+                    st.error("Failed to initialize agent. Please check your API keys.")
+            except Exception as e:
+                st.error(f"Error during learning cycle: {e}")
+                st.info("This might be due to network connectivity issues. Please try again later.")
     
     if st.session_state.last_update_time:
         st.success(f"Knowledge last updated at: {st.session_state.last_update_time}")
@@ -69,14 +75,12 @@ with st.sidebar:
 st.title("Ask the AI Agent")
 st.markdown(f"The agent is an expert on the topic: **'{agent_topic}'**")
 
-# Get the cached agent instance
-agent = get_agent(agent_topic)
-
-if agent:
-    # Check if the knowledge base has been built
-    if not st.session_state.last_update_time:
-        st.info("Please click the 'Update Knowledge Base Now' button in the sidebar to enable the agent.")
-    else:
+# Only initialize agent if knowledge base has been updated
+if st.session_state.last_update_time:
+    # Get the cached agent instance
+    agent = get_agent(agent_topic)
+    
+    if agent:
         # Display chat messages from history
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
@@ -90,9 +94,15 @@ if agent:
 
             with st.chat_message("assistant"):
                 with st.spinner("Searching knowledge base..."):
-                    response = agent.ask(prompt)
-                    st.markdown(response)
-            
-            st.session_state.messages.append({"role": "assistant", "content": response})
+                    try:
+                        response = agent.ask(prompt)
+                        st.markdown(response)
+                    except Exception as e:
+                        st.error(f"Error getting response: {e}")
+                        response = "Sorry, I encountered an error while processing your question."
+                
+                st.session_state.messages.append({"role": "assistant", "content": response})
+    else:
+        st.error("Agent could not be initialized. Please check the logs in your terminal.")
 else:
-    st.error("Agent could not be initialized. Please check the logs in your terminal.")
+    st.info("Please click the 'Update Knowledge Base Now' button in the sidebar to enable the agent.")

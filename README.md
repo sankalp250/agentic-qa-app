@@ -2,20 +2,22 @@
 
 [![Streamlit App](https://img.shields.io/badge/🚀_Live_Demo-Streamlit_App-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://agentic-app-app-9sqfnhaptnfzcrwmuvjxhx.streamlit.app/)
 
-A modern agentic app that proactively researches a topic, summarizes new content, filters for novelty, and assimilates it into a local vector store. Built with LangGraph, LangChain, and Groq for fast, cyclical learning beyond simple Q&A.
+A modern agentic app that proactively researches a topic, summarizes new content, and assimilates it into a local vector store. This project demonstrates a complete, cyclical Retrieval-Augmented Generation (RAG) pipeline, built with LangGraph, LangChain, and Groq for fast, autonomous learning.
 
 > **🌐 [Try the Live Demo](https://agentic-app-app-9sqfnhaptnfzcrwmuvjxhx.streamlit.app/)** - No installation required!
 
 ## ✨ Features
-- **Autonomous learning cycle**: Forage → Summarize → Critique → Assimilate
-- **Web foraging**: Uses Tavily for recent, relevant sources
-- **Novelty filter**: RAG check to avoid duplicates and keep quality high
-- **Local knowledge base**: FAISS vector store grows over time
-- **Fast LLM**: Groq API for low-latency reasoning and summaries
-- **Two UIs**: Streamlit web app and a scheduled CLI runner
+- **Autonomous Learning Cycle**: Deploys an agentic workflow (Forage → Summarize → Critique → Assimilate) to continuously grow its knowledge.
+- **Dynamic RAG Q&A Pipeline**: Answers user questions by retrieving relevant, up-to-date context directly from its self-built local vector store.
+- **RAG-based Novelty Filter**: Uses a RAG check to compare new content against its existing knowledge, preventing duplicates and ensuring high-quality, novel information is added.
+- **Web Foraging**: Uses Tavily to find recent, relevant sources on the web.
+- **Local Knowledge Base**: FAISS vector store (with ChromaDB fallback) grows over time as the agent learns.
+- **Fast LLM**: Groq API for low-latency reasoning, summarization, and generation.
+- **Two UI**: Streamlit web app and a scheduled CLI runner.
 
 ## 🏛️ Architecture at a glance
 - **LangGraph** orchestrates the workflow with a state machine
+- **Retrieval-Augmented Generation (RAG)** The core pipeline for both Q&A (retrieving context to answer questions) and data critique (retrieving context to filter novelty).
 - **HuggingFaceEmbeddings** generate vector representations
 - **FAISS/ChromaDB** indexes and searches local documents (auto-fallback)
 - **Groq Chat model** handles summarization and critique

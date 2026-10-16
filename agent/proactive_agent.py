@@ -1,4 +1,4 @@
-﻿"""
+"""
 Proactive AI Agent with a "Living" Knowledge Base
 """
 import os
@@ -63,7 +63,7 @@ class ProactiveAgentState(TypedDict):
 class ProactiveAgent:
     """
     An agent that proactively researches a topic, updates its own knowledge base,
-    and can answer questions based on its accumulated knowledge.
+    and can answer questions based on its accumulated knowledge and session context.
     """
     def __init__(self, topic: str, model_name: str = None):
         self.topic = topic
@@ -86,10 +86,10 @@ class ProactiveAgent:
         # LangGraph state machine
         self.graph = self._build_graph()
 
-    def _invoke_llm(self, messages):
+    def _invoke_llm(self, messages, max_tokens: int = 4096):
         """
-        Invokes Groq LLM with automatic fallback across available models
-        in case a model is deprecated, rate-limited, or unavailable.
+        Invokes Groq LLM with high token ceiling (to avoid truncation)
+        and automatic fallback across active models.
         """
         models_to_try = [self.model_name] + [m for m in AVAILABLE_GROQ_MODELS if m != self.model_name]
         last_error = None
@@ -98,7 +98,8 @@ class ProactiveAgent:
                 llm = ChatGroq(
                     groq_api_key=self.groq_api_key,
                     model_name=model,
-                    temperature=0.3
+                    temperature=0.3,
+                    max_tokens=max_tokens
                 )
                 response = llm.invoke(messages)
                 self.model_name = model
@@ -106,7 +107,7 @@ class ProactiveAgent:
             except Exception as e:
                 err_str = str(e).lower()
                 if "model_not_found" in err_str or "does not exist" in err_str or "404" in err_str:
-                    print(f"⚠️ Model '{model}' not available on Groq, trying fallback...")
+                    print(f"⚠️ Model '{model}' unavailable, trying fallback...")
                     last_error = e
                     continue
                 raise e
@@ -119,13 +120,11 @@ class ProactiveAgent:
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
 
-        # Try Chroma with persistent storage first (pure Python, cross-platform)
         try:
             import chromadb
             persist_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "chroma_db")
             os.makedirs(persist_directory, exist_ok=True)
             
-            # Sanitize topic name for collection
             safe_collection_name = "".join(c if c.isalnum() else "_" for c in self.topic.lower())[:50]
             if not safe_collection_name:
                 safe_collection_name = "agent_kb"
@@ -140,12 +139,11 @@ class ProactiveAgent:
                 collection_name=safe_collection_name
             )
             self.vector_store_type = "chroma"
-            print(f"✓ Vector store initialized with persistent Chroma at {persist_directory} (collection: {safe_collection_name})")
+            print(f"✓ Vector store initialized with persistent Chroma at {persist_directory}")
             return vector_store
         except Exception as e:
             print(f"⚠️ Chroma persistent initialization failed, trying FAISS or in-memory: {e}")
 
-        # Fallback to FAISS if available
         if HAS_FAISS:
             try:
                 embedding_size = 384
@@ -163,7 +161,6 @@ class ProactiveAgent:
             except Exception as e:
                 print(f"⚠️ FAISS initialization failed: {e}")
 
-        # In-memory Chroma as last resort
         try:
             import chromadb
             from chromadb.config import Settings
@@ -236,7 +233,6 @@ class ProactiveAgent:
         raw_articles = []
         content = getattr(tool_message, "content", "")
         
-        # Robust parsing of tool result
         if isinstance(content, list):
             raw_articles = content
         elif isinstance(content, dict):
@@ -253,9 +249,8 @@ class ProactiveAgent:
         if isinstance(raw_articles, dict) and "results" in raw_articles:
             raw_articles = raw_articles["results"]
 
-        # Direct fallback search if parsing failed or was empty
         if not raw_articles or not isinstance(raw_articles, list):
-            print("Tool node output parsing returned empty, falling back to direct web search invoke...")
+            print("Tool node output empty, falling back to direct web search invoke...")
             try:
                 query = f"Key concepts, architecture, guide, and recent developments in {state['topic']}"
                 direct_results = self.search_tool.invoke({"query": query})
@@ -305,7 +300,7 @@ class ProactiveAgent:
                     f"Please provide a clear, factual, and informative summary of the following content "
                     f"concerning '{state['topic']}':\n\n{article_content[:3500]}"
                 )
-                summary_response = self._invoke_llm([HumanMessage(content=prompt)])
+                summary_response = self._invoke_llm([HumanMessage(content=prompt)], max_tokens=1500)
                 summary_text = summary_response.content.strip()
             except Exception as e:
                 print(f"LLM summary failed for article {i}: {e}")
@@ -355,7 +350,7 @@ class ProactiveAgent:
             """
             
             try:
-                critique_response = self._invoke_llm([HumanMessage(content=prompt)])
+                critique_response = self._invoke_llm([HumanMessage(content=prompt)], max_tokens=20)
                 decision = critique_response.content.strip().upper()
             except Exception:
                 decision = "YES"
@@ -407,39 +402,57 @@ class ProactiveAgent:
             "total_chunks": final_count
         }
 
-    def ask(self, question: str) -> str:
-        """Asks a question to the agent's knowledge base."""
-        print(f"\n❓ Answering question: '{question}' (using model: {self.model_name})")
+    def ask(self, question: str, chat_history: List[dict] = None) -> str:
+        """
+        Answers a user question utilizing both indexed RAG knowledge chunks
+        and conversational session memory, with a high 4096 token limit to prevent truncation.
+        """
+        print(f"\n❓ Answering question: '{question}' (model: {self.model_name})")
         doc_count = self.get_document_count()
-        if doc_count == 0:
-            return (
-                f"My knowledge base is currently empty for topic '{self.topic}'. "
-                "Please click the **'Update Knowledge Base Now'** button in the sidebar to research and assimilate knowledge first."
-            )
+        
+        # 1. Retrieve knowledge base context
+        context = ""
+        has_kb_docs = False
+        if doc_count > 0:
+            relevant_docs = self.vector_store.similarity_search(question, k=4)
+            if relevant_docs:
+                has_kb_docs = True
+                context = "\n\n---\n\n".join([doc.page_content for doc in relevant_docs])
 
-        # Retrieve relevant documents from the knowledge base (RAG)
-        relevant_docs = self.vector_store.similarity_search(question, k=4)
-        if not relevant_docs:
-            return (
-                f"I searched my knowledge base ({doc_count} chunks), but found no relevant context for: '{question}'. "
-                "Try updating the knowledge base with fresh research in the sidebar."
-            )
+        # 2. Format conversation history (session memory)
+        history_formatted = ""
+        if chat_history:
+            recent_msgs = chat_history[-6:]
+            history_lines = []
+            for m in recent_msgs:
+                role = "User" if m.get("role") == "user" else "Assistant"
+                content_preview = m.get("content", "")
+                if len(content_preview) > 500:
+                    content_preview = content_preview[:500] + "..."
+                history_lines.append(f"{role}: {content_preview}")
+            history_formatted = "\n".join(history_lines)
 
-        context = "\n\n---\n\n".join([doc.page_content for doc in relevant_docs])
-
+        # 3. Hybrid RAG prompt: ground in KB when available, answer comprehensively even if outside
         prompt = f"""
-You are an expert research assistant specializing in '{self.topic}'.
-Answer the user's question clearly, thoroughly, and accurately based on the context retrieved from your knowledge base below.
-If the retrieved context does not fully cover the answer, state what is known from your knowledge base and provide clear explanations.
+You are an expert AI research assistant.
 
-Knowledge Base Context:
+Current Research Topic: {self.topic}
+
+Conversation History (Session Memory):
+{history_formatted if history_formatted else "None (Beginning of conversation)"}
+
+Researched Knowledge Base Context:
 ---
-{context}
+{context if has_kb_docs else "No specific research chunks indexed yet for this question."}
 ---
 
-Question: {question}
+User Question: {question}
 
-Detailed Answer:
+Instructions:
+1. If the Researched Knowledge Base Context above contains relevant facts, prioritize and cite them directly.
+2. If the user refers back to previous questions in the Conversation History (e.g., comparing topics or follow-ups), maintain context and continuity naturally.
+3. If the user asks about a topic outside the current knowledge base chunks, provide a thorough, helpful answer using your broad knowledge, while noting that it is general technical knowledge.
+4. Structure your response with clean Markdown headings, bullet points, and code snippets where appropriate. Complete all thoughts and tables fully without stopping abruptly.
 """
-        response = self._invoke_llm([HumanMessage(content=prompt)])
+        response = self._invoke_llm([HumanMessage(content=prompt)], max_tokens=4096)
         return response.content

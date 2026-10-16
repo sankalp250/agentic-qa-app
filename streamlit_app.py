@@ -16,7 +16,7 @@ from agent.proactive_agent import ProactiveAgent, AVAILABLE_GROQ_MODELS, DEFAULT
 # --- Page Configuration ---
 st.set_page_config(
     page_title="Proactive AI Agent",
-    page_icon="ðŸ§ ",
+    page_icon="🧠",
     layout="wide",
 )
 
@@ -28,7 +28,7 @@ def get_agent(topic, model_name, _cache_version="v2026_10_16_memory_fix"):
         agent = ProactiveAgent(topic=topic, model_name=model_name)
         return agent
     except Exception as e:
-        st.error(f"Failed to initialize agent: {e}", icon="ðŸš¨")
+        st.error(f"Failed to initialize agent: {e}", icon="🚨")
         return None
 
 # --- Session State ---
@@ -42,7 +42,7 @@ has_keys = bool(os.environ.get("GROQ_API_KEY") and os.environ.get("TAVILY_API_KE
 
 # --- Sidebar ---
 with st.sidebar:
-    st.title("ðŸ§  Proactive AI Agent")
+    st.title("🧠 Proactive AI Agent")
     st.markdown("Autonomous research agent with persistent knowledge base & session memory.")
     
     st.divider()
@@ -72,7 +72,7 @@ with st.sidebar:
     st.metric(label="Indexed Knowledge Chunks", value=current_doc_count)
     
     # Button to trigger the learning cycle
-    if st.button("ðŸ”„ Update Knowledge Base Now", type="primary", use_container_width=True):
+    if st.button("🔄 Update Knowledge Base Now", type="primary", use_container_width=True):
         if not agent:
             st.error("Missing API Keys: Please configure GROQ_API_KEY and TAVILY_API_KEY in your .env file or Streamlit Cloud Secrets.")
         else:
@@ -90,14 +90,14 @@ with st.sidebar:
                     st.error(f"Error during learning cycle: {e}")
     
     if st.session_state.last_update_time:
-        st.caption(f"ðŸ•’ Last updated: {st.session_state.last_update_time}")
+        st.caption(f"🕐 Last updated: {st.session_state.last_update_time}")
     elif current_doc_count > 0:
-        st.caption(f"ðŸ’¾ Persistent knowledge base ({current_doc_count} chunks)")
+        st.caption(f"💾 Persistent knowledge base ({current_doc_count} chunks)")
     else:
         st.warning("Knowledge base is empty. Click the update button to start learning.")
         
     st.divider()
-    if st.button("ðŸ—‘ï¸ Clear Chat History", use_container_width=True):
+    if st.button("🗑️ï¸ Clear Chat History", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
@@ -106,7 +106,7 @@ st.title("Ask the AI Agent")
 st.markdown(f"The agent is an expert on: **'{agent_topic}'** *(Model: {selected_model})*")
 
 if not has_keys:
-    st.error("ðŸ”’ **API Keys Missing**: Please set GROQ_API_KEY and TAVILY_API_KEY in your .env file (local) or **Streamlit Cloud Secrets** (production).")
+    st.error("🔒 **API Keys Missing**: Please set GROQ_API_KEY and TAVILY_API_KEY in your .env file (local) or **Streamlit Cloud Secrets** (production).")
     st.stop()
 
 # Display chat messages from history

@@ -381,7 +381,7 @@ class ProactiveAgent:
     # --- Public Methods ---
     def run_proactive_cycle(self) -> dict:
         """Executes one full cycle of the agent's proactive learning and returns stats."""
-        print(f"\nðŸš€ Starting proactive cycle for topic: '{self.topic}'")
+        print(f"\n🚀 Starting proactive cycle for topic: '{self.topic}'")
         initial_count = self.get_document_count()
         initial_state = {
             "topic": self.topic,

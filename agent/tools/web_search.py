@@ -7,10 +7,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Automatically sync Streamlit secrets to environment if available
+try:
+    import streamlit as st
+    if hasattr(st, "secrets"):
+        for key in ["TAVILY_API_KEY", "GROQ_API_KEY"]:
+            if key in st.secrets and not os.environ.get(key):
+                os.environ[key] = str(st.secrets[key])
+except Exception:
+    pass
+
 def get_web_search_tool():
     """
     Initializes and returns the Tavily web search tool.
-
     This tool is configured to search for recent news and articles,
     making it ideal for our proactive agent.
     """
@@ -18,11 +27,9 @@ def get_web_search_tool():
     if not tavily_api_key:
         raise ValueError(
             "TAVILY_API_KEY not found in environment variables. "
-            "Please add it to the .env file."
+            "Please add it to the .env file or Streamlit secrets."
         )
 
-    # max_results=5 ensures we get a good number of diverse sources.
-    # search_depth="advanced" allows the tool to follow links for better results.
     web_search_tool = TavilySearchResults(
         max_results=5,
         search_depth="advanced",
@@ -30,7 +37,6 @@ def get_web_search_tool():
     )
     return web_search_tool
 
-# Example of how to use the tool (optional, for testing)
 if __name__ == '__main__':
     print("Testing the web search tool...")
     search_tool = get_web_search_tool()

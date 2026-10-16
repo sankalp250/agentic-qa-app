@@ -1,8 +1,16 @@
 """
 Streamlit Frontend for the Proactive AI Agent
 """
+import os
 import streamlit as st
 from datetime import datetime
+
+# --- Sync Streamlit Secrets to os.environ ---
+if hasattr(st, "secrets"):
+    for key in ["GROQ_API_KEY", "TAVILY_API_KEY"]:
+        if key in st.secrets and not os.environ.get(key):
+            os.environ[key] = str(st.secrets[key])
+
 from agent.proactive_agent import ProactiveAgent
 
 # --- Page Configuration ---
@@ -13,14 +21,9 @@ st.set_page_config(
 )
 
 # --- Agent Initialization ---
-# This function is now simpler. It just creates the agent.
-# We will run the learning cycle separately.
 @st.cache_resource
 def get_agent(topic):
-    """
-    Loads the ProactiveAgent and caches it.
-    Does NOT run the learning cycle here.
-    """
+    """Loads and caches the ProactiveAgent for a topic."""
     try:
         agent = ProactiveAgent(topic=topic)
         return agent
@@ -28,9 +31,7 @@ def get_agent(topic):
         st.error(f"Failed to initialize agent: {e}", icon="🚨")
         return None
 
-# --- Main Application Logic ---
-
-# Initialize session state for tracking updates
+# --- Session State ---
 if "last_update_time" not in st.session_state:
     st.session_state.last_update_time = None
 if "messages" not in st.session_state:
@@ -39,70 +40,92 @@ if "messages" not in st.session_state:
 # --- Sidebar ---
 with st.sidebar:
     st.title("🧠 Proactive AI Agent")
-    st.markdown("This agent autonomously researches a topic to build its knowledge base.")
+    st.markdown("This agent autonomously researches a topic to build a persistent knowledge base.")
     
+    st.divider()
     st.subheader("Configuration")
     agent_topic = st.text_input(
         "Agent Research Topic", 
-        "Latest advancements in multimodal AI models",
-        help="The topic the agent will research."
+        "rag",
+        help="The topic the agent will research (e.g., 'rag', 'multimodal AI', 'quantum computing')."
     )
 
+    st.subheader("API Keys (Optional Override)")
+    groq_input = st.text_input("Groq API Key", value=os.environ.get("GROQ_API_KEY", ""), type="password")
+    tavily_input = st.text_input("Tavily API Key", value=os.environ.get("TAVILY_API_KEY", ""), type="password")
+    if groq_input:
+        os.environ["GROQ_API_KEY"] = groq_input
+    if tavily_input:
+        os.environ["TAVILY_API_KEY"] = tavily_input
+
+    # Get cached agent instance
+    agent = None
+    if os.environ.get("GROQ_API_KEY") and os.environ.get("TAVILY_API_KEY"):
+        agent = get_agent(agent_topic)
+
+    st.divider()
     st.subheader("Knowledge Base Control")
+    
+    current_doc_count = agent.get_document_count() if agent else 0
+    st.metric(label="Indexed Knowledge Chunks", value=current_doc_count)
+    
     # Button to trigger the learning cycle
-    if st.button("🔄 Update Knowledge Base Now", type="primary"):
-        with st.spinner("Agent is learning... This may take a moment."):
-            try:
-                agent = get_agent(agent_topic)
-                if agent:
-                    agent.run_proactive_cycle()
+    if st.button("🔄 Update Knowledge Base Now", type="primary", use_container_width=True):
+        if not agent:
+            st.error("Please configure your GROQ_API_KEY and TAVILY_API_KEY first.")
+        else:
+            with st.spinner(f"Agent is researching '{agent_topic}', analyzing web sources, and updating knowledge base..."):
+                try:
+                    stats = agent.run_proactive_cycle()
                     st.session_state.last_update_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    # Clear chat history after updating knowledge
-                    st.session_state.messages = [] 
-                    st.success("Knowledge base updated!")
-                else:
-                    st.error("Failed to initialize agent. Please check your API keys.")
-            except Exception as e:
-                st.error(f"Error during learning cycle: {e}")
-                st.info("This might be due to network connectivity issues. Please try again later.")
+                    st.session_state.messages = []  # Reset chat history with fresh context
+                    
+                    if stats["total_chunks"] > 0:
+                        st.success(f"Knowledge base updated! Added {stats['new_chunks']} chunks (Total: {stats['total_chunks']}).")
+                    else:
+                        st.warning("Learning cycle finished, but 0 chunks were added. Check Tavily search results.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error during learning cycle: {e}")
     
     if st.session_state.last_update_time:
-        st.success(f"Knowledge last updated at: {st.session_state.last_update_time}")
+        st.caption(f"🕒 Last updated: {st.session_state.last_update_time}")
+    elif current_doc_count > 0:
+        st.caption(f"💾 Using persistent knowledge base ({current_doc_count} chunks)")
     else:
-        st.warning("Knowledge base is empty. Click the update button to start the agent's learning process.")
+        st.warning("Knowledge base is empty. Click the update button to start learning.")
 
 # --- Main Chat Interface ---
 st.title("Ask the AI Agent")
 st.markdown(f"The agent is an expert on the topic: **'{agent_topic}'**")
 
-# Only initialize agent if knowledge base has been updated
-if st.session_state.last_update_time:
-    # Get the cached agent instance
-    agent = get_agent(agent_topic)
-    
-    if agent:
-        # Display chat messages from history
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+if not os.environ.get("GROQ_API_KEY") or not os.environ.get("TAVILY_API_KEY"):
+    st.warning("⚠️ API keys missing: Please ensure GROQ_API_KEY and TAVILY_API_KEY are provided in the sidebar or .env file.")
+    st.stop()
 
-        # Accept user input
-        if prompt := st.chat_input("Ask a question about the topic..."):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
+doc_count = agent.get_document_count() if agent else 0
 
-            with st.chat_message("assistant"):
-                with st.spinner("Searching knowledge base..."):
-                    try:
-                        response = agent.ask(prompt)
-                        st.markdown(response)
-                    except Exception as e:
-                        st.error(f"Error getting response: {e}")
-                        response = "Sorry, I encountered an error while processing your question."
-                
-                st.session_state.messages.append({"role": "assistant", "content": response})
-    else:
-        st.error("Agent could not be initialized. Please check the logs in your terminal.")
+if doc_count > 0:
+    # Display chat messages from history
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Accept user input
+    if prompt := st.chat_input("Ask a question about the topic..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Searching knowledge base..."):
+                try:
+                    response = agent.ask(prompt)
+                    st.markdown(response)
+                except Exception as e:
+                    st.error(f"Error getting response: {e}")
+                    response = "Sorry, I encountered an error while processing your question."
+            
+            st.session_state.messages.append({"role": "assistant", "content": response})
 else:
-    st.info("Please click the 'Update Knowledge Base Now' button in the sidebar to enable the agent.")
+    st.info("💡 **Knowledge base is currently empty.** Click **'Update Knowledge Base Now'** in the sidebar to research this topic and build the knowledge base!")

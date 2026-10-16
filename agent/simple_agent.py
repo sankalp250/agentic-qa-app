@@ -1,4 +1,4 @@
-"""
+﻿"""
 Simple AI Q&A Agent using LangGraph and Groq API
 """
 import os
@@ -22,7 +22,7 @@ class AgentState(TypedDict):
 class SimpleQAAgent:
     """Simple Q&A Agent using LangGraph"""
     
-    def __init__(self, model_name: str = "llama-3.1-8b-instant"):
+    def __init__(self, model_name: str = "openai/gpt-oss-20b"):
         """
         Initialize the Q&A Agent
         
@@ -211,3 +211,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

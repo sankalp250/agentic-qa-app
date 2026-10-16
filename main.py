@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 AI Q&A Bot - Main Entry Point
 A simple command-line Q&A bot using LangGraph and Groq API
@@ -60,7 +60,7 @@ Examples:
   python main.py --question "Explain quantum computing"  # Ask a single question
 
 Models available:
-  - llama-3.1-8b-instant (default)
+  - openai/gpt-oss-20b (default)
   - llama3-70b-8192
   - mixtral-8x7b-32768
   - gemma2-9b-it
@@ -76,8 +76,8 @@ Models available:
     parser.add_argument(
         "-m", "--model",
         type=str,
-        default="llama-3.1-8b-instant",
-        help="Groq model to use (default: llama-3.1-8b-instant)"
+        default="openai/gpt-oss-20b",
+        help="Groq model to use (default: openai/gpt-oss-20b)"
     )
     
     parser.add_argument(
@@ -98,3 +98,4 @@ Models available:
 
 if __name__ == "__main__":
     main()
+

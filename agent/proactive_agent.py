@@ -1,4 +1,4 @@
-"""
+﻿"""
 Proactive AI Agent with a "Living" Knowledge Base
 """
 import os
@@ -21,7 +21,7 @@ load_dotenv()
 try:
     import streamlit as st
     if hasattr(st, "secrets"):
-        for key in ["GROQ_API_KEY", "TAVILY_API_KEY"]:
+        for key in ["GROQ_API_KEY", "TAVILY_API_KEY", "GROQ_MODEL"]:
             if key in st.secrets and not os.environ.get(key):
                 os.environ[key] = str(st.secrets[key])
 except Exception:
@@ -41,6 +41,14 @@ from langgraph.prebuilt import ToolNode
 
 from agent.tools.web_search import get_web_search_tool
 
+# Supported and active Groq models with auto-fallback
+AVAILABLE_GROQ_MODELS = [
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.8-27b",
+    "openai/gpt-oss-120b"
+]
+DEFAULT_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+
 # --- 1. Agent State Definition ---
 class ProactiveAgentState(TypedDict):
     """Represents the state of our proactive agent."""
@@ -57,24 +65,18 @@ class ProactiveAgent:
     An agent that proactively researches a topic, updates its own knowledge base,
     and can answer questions based on its accumulated knowledge.
     """
-    def __init__(self, topic: str, model_name: str = "llama-3.1-8b-instant"):
+    def __init__(self, topic: str, model_name: str = None):
         self.topic = topic
+        self.model_name = model_name or DEFAULT_MODEL
         self.groq_api_key = os.getenv("GROQ_API_KEY")
         if not self.groq_api_key:
             raise ValueError(
                 "GROQ_API_KEY not found in environment variables or Streamlit secrets."
             )
 
-        # LLM for reasoning and generation
-        self.llm = ChatGroq(
-            groq_api_key=self.groq_api_key,
-            model_name=model_name,
-            temperature=0.3
-        )
         # Web search tool
         self.search_tool = get_web_search_tool()
         self.tools = [self.search_tool]
-        self.llm_with_tools = self.llm.bind_tools(self.tools)
         self.tool_node = ToolNode(self.tools)
 
         # Vector Store for the knowledge base
@@ -83,6 +85,33 @@ class ProactiveAgent:
 
         # LangGraph state machine
         self.graph = self._build_graph()
+
+    def _invoke_llm(self, messages):
+        """
+        Invokes Groq LLM with automatic fallback across available models
+        in case a model is deprecated, rate-limited, or unavailable.
+        """
+        models_to_try = [self.model_name] + [m for m in AVAILABLE_GROQ_MODELS if m != self.model_name]
+        last_error = None
+        for model in models_to_try:
+            try:
+                llm = ChatGroq(
+                    groq_api_key=self.groq_api_key,
+                    model_name=model,
+                    temperature=0.3
+                )
+                response = llm.invoke(messages)
+                self.model_name = model
+                return response
+            except Exception as e:
+                err_str = str(e).lower()
+                if "model_not_found" in err_str or "does not exist" in err_str or "404" in err_str:
+                    print(f"⚠️ Model '{model}' not available on Groq, trying fallback...")
+                    last_error = e
+                    continue
+                raise e
+        if last_error:
+            raise last_error
 
     def _initialize_vector_store(self):
         """Initializes a persistent vector store. Prefers Chroma persistent, fallbacks to FAISS."""
@@ -187,11 +216,8 @@ class ProactiveAgent:
         """Generates a targeted, informative search query based on the topic."""
         topic = state.get("topic", self.topic)
         print(f"--- foraging for new information on '{topic}' ---")
-        
-        # Build a robust search query that works well for technical concepts
         query = f"Key concepts, architecture, guide, and recent developments in {topic}"
 
-        # Trigger tool call via AIMessage
         message = AIMessage(
             content="",
             tool_calls=[{
@@ -227,7 +253,7 @@ class ProactiveAgent:
         if isinstance(raw_articles, dict) and "results" in raw_articles:
             raw_articles = raw_articles["results"]
 
-        # If tool returned nothing or failed to serialize, direct fallback invocation
+        # Direct fallback search if parsing failed or was empty
         if not raw_articles or not isinstance(raw_articles, list):
             print("Tool node output parsing returned empty, falling back to direct web search invoke...")
             try:
@@ -246,7 +272,6 @@ class ProactiveAgent:
 
         print(f"Processing {len(raw_articles)} raw search articles...")
 
-        # Extract articles and load full content or fallback snippet
         processed_articles = []
         for i, article in enumerate(raw_articles):
             if not isinstance(article, dict):
@@ -257,7 +282,6 @@ class ProactiveAgent:
             snippet = article.get("content") or article.get("snippet") or article.get("description") or ""
             
             article_content = snippet
-            # Try fetching full webpage if URL is available
             if url:
                 try:
                     loader = WebBaseLoader(
@@ -270,20 +294,18 @@ class ProactiveAgent:
                     docs = loader.load()
                     if docs and docs[0].page_content.strip():
                         article_content = docs[0].page_content[:4000]
-                except Exception as e:
-                    # WebBaseLoader fails on Cloudflare/403: snippet fallback is completely fine
+                except Exception:
                     pass
 
             if not article_content or len(article_content.strip()) < 30:
                 continue
 
-            # Summarize via LLM
             try:
                 prompt = (
                     f"Please provide a clear, factual, and informative summary of the following content "
                     f"concerning '{state['topic']}':\n\n{article_content[:3500]}"
                 )
-                summary_response = self.llm.invoke([HumanMessage(content=prompt)])
+                summary_response = self._invoke_llm([HumanMessage(content=prompt)])
                 summary_text = summary_response.content.strip()
             except Exception as e:
                 print(f"LLM summary failed for article {i}: {e}")
@@ -308,7 +330,6 @@ class ProactiveAgent:
         for article in state.get('new_articles', []):
             summary = article['summary']
             
-            # If the knowledge base is empty, every valid article about the topic is valuable!
             if current_docs_count == 0:
                 print(f"Knowledge base is empty: Automatically assimilating '{article['title']}'")
                 valuable_info.append(article['full_content'])
@@ -334,7 +355,7 @@ class ProactiveAgent:
             """
             
             try:
-                critique_response = self.llm.invoke([HumanMessage(content=prompt)])
+                critique_response = self._invoke_llm([HumanMessage(content=prompt)])
                 decision = critique_response.content.strip().upper()
             except Exception:
                 decision = "YES"
@@ -349,7 +370,6 @@ class ProactiveAgent:
         """Adds valuable new information to the knowledge base."""
         valuable_info = state.get('valuable_info', [])
         print(f"--- assimilating {len(valuable_info)} new documents ---")
-        chunks_added = 0
         if valuable_info:
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1000,
@@ -357,8 +377,7 @@ class ProactiveAgent:
             )
             chunks = text_splitter.create_documents(valuable_info)
             self.vector_store.add_documents(chunks)
-            chunks_added = len(chunks)
-            print(f"✓ Added {chunks_added} chunks to vector store. Total documents: {self.get_document_count()}")
+            print(f"✓ Added {len(chunks)} chunks to vector store. Total documents: {self.get_document_count()}")
         else:
             print("No new information met assimilation criteria.")
             
@@ -390,7 +409,7 @@ class ProactiveAgent:
 
     def ask(self, question: str) -> str:
         """Asks a question to the agent's knowledge base."""
-        print(f"\n❓ Answering question: '{question}'")
+        print(f"\n❓ Answering question: '{question}' (using model: {self.model_name})")
         doc_count = self.get_document_count()
         if doc_count == 0:
             return (
@@ -422,5 +441,5 @@ Question: {question}
 
 Detailed Answer:
 """
-        response = self.llm.invoke([HumanMessage(content=prompt)])
+        response = self._invoke_llm([HumanMessage(content=prompt)])
         return response.content

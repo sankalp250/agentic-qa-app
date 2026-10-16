@@ -16,19 +16,19 @@ from agent.proactive_agent import ProactiveAgent, AVAILABLE_GROQ_MODELS, DEFAULT
 # --- Page Configuration ---
 st.set_page_config(
     page_title="Proactive AI Agent",
-    page_icon="🧠",
+    page_icon="ðŸ§ ",
     layout="wide",
 )
 
 # --- Agent Initialization ---
 @st.cache_resource
-def get_agent(topic, model_name):
+def get_agent(topic, model_name, _cache_version="v2026_10_16_memory_fix"):
     """Loads and caches the ProactiveAgent for a topic and model."""
     try:
         agent = ProactiveAgent(topic=topic, model_name=model_name)
         return agent
     except Exception as e:
-        st.error(f"Failed to initialize agent: {e}", icon="🚨")
+        st.error(f"Failed to initialize agent: {e}", icon="ðŸš¨")
         return None
 
 # --- Session State ---
@@ -42,7 +42,7 @@ has_keys = bool(os.environ.get("GROQ_API_KEY") and os.environ.get("TAVILY_API_KE
 
 # --- Sidebar ---
 with st.sidebar:
-    st.title("🧠 Proactive AI Agent")
+    st.title("ðŸ§  Proactive AI Agent")
     st.markdown("Autonomous research agent with persistent knowledge base & session memory.")
     
     st.divider()
@@ -72,7 +72,7 @@ with st.sidebar:
     st.metric(label="Indexed Knowledge Chunks", value=current_doc_count)
     
     # Button to trigger the learning cycle
-    if st.button("🔄 Update Knowledge Base Now", type="primary", use_container_width=True):
+    if st.button("ðŸ”„ Update Knowledge Base Now", type="primary", use_container_width=True):
         if not agent:
             st.error("Missing API Keys: Please configure GROQ_API_KEY and TAVILY_API_KEY in your .env file or Streamlit Cloud Secrets.")
         else:
@@ -90,14 +90,14 @@ with st.sidebar:
                     st.error(f"Error during learning cycle: {e}")
     
     if st.session_state.last_update_time:
-        st.caption(f"🕒 Last updated: {st.session_state.last_update_time}")
+        st.caption(f"ðŸ•’ Last updated: {st.session_state.last_update_time}")
     elif current_doc_count > 0:
-        st.caption(f"💾 Persistent knowledge base ({current_doc_count} chunks)")
+        st.caption(f"ðŸ’¾ Persistent knowledge base ({current_doc_count} chunks)")
     else:
         st.warning("Knowledge base is empty. Click the update button to start learning.")
         
     st.divider()
-    if st.button("🗑️ Clear Chat History", use_container_width=True):
+    if st.button("ðŸ—‘ï¸ Clear Chat History", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
@@ -106,7 +106,7 @@ st.title("Ask the AI Agent")
 st.markdown(f"The agent is an expert on: **'{agent_topic}'** *(Model: {selected_model})*")
 
 if not has_keys:
-    st.error("🔒 **API Keys Missing**: Please set GROQ_API_KEY and TAVILY_API_KEY in your .env file (local) or **Streamlit Cloud Secrets** (production).")
+    st.error("ðŸ”’ **API Keys Missing**: Please set GROQ_API_KEY and TAVILY_API_KEY in your .env file (local) or **Streamlit Cloud Secrets** (production).")
     st.stop()
 
 # Display chat messages from history
@@ -124,10 +124,14 @@ if prompt := st.chat_input("Ask a question about the topic or follow-up..."):
         with st.spinner(f"Analyzing knowledge base & reasoning with {selected_model}..."):
             try:
                 # Pass recent chat messages so bot maintains session memory!
-                response = agent.ask(prompt, chat_history=st.session_state.messages[:-1])
+                try:
+                    response = agent.ask(prompt, chat_history=st.session_state.messages[:-1])
+                except TypeError:
+                    response = agent.ask(prompt)
                 st.markdown(response)
             except Exception as e:
                 st.error(f"Error getting response: {e}")
                 response = f"Sorry, I encountered an error: {e}"
         
         st.session_state.messages.append({"role": "assistant", "content": response})
+

@@ -107,7 +107,7 @@ class ProactiveAgent:
             except Exception as e:
                 err_str = str(e).lower()
                 if "model_not_found" in err_str or "does not exist" in err_str or "404" in err_str:
-                    print(f"⚠️ Model '{model}' unavailable, trying fallback...")
+                    print(f"âš ï¸ Model '{model}' unavailable, trying fallback...")
                     last_error = e
                     continue
                 raise e
@@ -139,10 +139,10 @@ class ProactiveAgent:
                 collection_name=safe_collection_name
             )
             self.vector_store_type = "chroma"
-            print(f"✓ Vector store initialized with persistent Chroma at {persist_directory}")
+            print(f"âœ“ Vector store initialized with persistent Chroma at {persist_directory}")
             return vector_store
         except Exception as e:
-            print(f"⚠️ Chroma persistent initialization failed, trying FAISS or in-memory: {e}")
+            print(f"âš ï¸ Chroma persistent initialization failed, trying FAISS or in-memory: {e}")
 
         if HAS_FAISS:
             try:
@@ -156,10 +156,10 @@ class ProactiveAgent:
                     index_to_docstore_id={}
                 )
                 self.vector_store_type = "faiss"
-                print("✓ Vector store initialized with FAISS.")
+                print("âœ“ Vector store initialized with FAISS.")
                 return vector_store
             except Exception as e:
-                print(f"⚠️ FAISS initialization failed: {e}")
+                print(f"âš ï¸ FAISS initialization failed: {e}")
 
         try:
             import chromadb
@@ -171,7 +171,7 @@ class ProactiveAgent:
                 collection_name="agent_kb"
             )
             self.vector_store_type = "chroma_ephemeral"
-            print("✓ Vector store initialized with ephemeral Chroma.")
+            print("âœ“ Vector store initialized with ephemeral Chroma.")
             return vector_store
         except Exception as e:
             raise Exception(f"Failed to initialize any vector store: {e}")
@@ -204,7 +204,7 @@ class ProactiveAgent:
         workflow.add_edge("critique", "assimilate")
         workflow.add_edge("assimilate", END)
 
-        print("✓ Agent graph built successfully.")
+        print("âœ“ Agent graph built successfully.")
         return workflow.compile()
 
     # --- Node Implementations ---
@@ -372,7 +372,7 @@ class ProactiveAgent:
             )
             chunks = text_splitter.create_documents(valuable_info)
             self.vector_store.add_documents(chunks)
-            print(f"✓ Added {len(chunks)} chunks to vector store. Total documents: {self.get_document_count()}")
+            print(f"âœ“ Added {len(chunks)} chunks to vector store. Total documents: {self.get_document_count()}")
         else:
             print("No new information met assimilation criteria.")
             
@@ -381,7 +381,7 @@ class ProactiveAgent:
     # --- Public Methods ---
     def run_proactive_cycle(self) -> dict:
         """Executes one full cycle of the agent's proactive learning and returns stats."""
-        print(f"\n🚀 Starting proactive cycle for topic: '{self.topic}'")
+        print(f"\nðŸš€ Starting proactive cycle for topic: '{self.topic}'")
         initial_count = self.get_document_count()
         initial_state = {
             "topic": self.topic,
@@ -394,7 +394,7 @@ class ProactiveAgent:
         self.graph.invoke(initial_state)
         final_count = self.get_document_count()
         new_chunks = max(0, final_count - initial_count)
-        print(f"✓ Proactive cycle completed. New chunks added: {new_chunks}. Total chunks: {final_count}")
+        print(f"âœ“ Proactive cycle completed. New chunks added: {new_chunks}. Total chunks: {final_count}")
         return {
             "topic": self.topic,
             "initial_chunks": initial_count,
@@ -402,12 +402,13 @@ class ProactiveAgent:
             "total_chunks": final_count
         }
 
-    def ask(self, question: str, chat_history: List[dict] = None) -> str:
+    def ask(self, question: str, *args, **kwargs) -> str:
+        chat_history = kwargs.get('chat_history') or (args[0] if len(args) > 0 else None)
         """
         Answers a user question utilizing both indexed RAG knowledge chunks
         and conversational session memory, with a high 4096 token limit to prevent truncation.
         """
-        print(f"\n❓ Answering question: '{question}' (model: {self.model_name})")
+        print(f"\nâ“ Answering question: '{question}' (model: {self.model_name})")
         doc_count = self.get_document_count()
         
         # 1. Retrieve knowledge base context
@@ -456,3 +457,4 @@ Instructions:
 """
         response = self._invoke_llm([HumanMessage(content=prompt)], max_tokens=4096)
         return response.content
+
